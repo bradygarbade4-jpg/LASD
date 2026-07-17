@@ -1,0 +1,143 @@
+const { 
+    SlashCommandBuilder, 
+    userMention, 
+    MessageFlags, 
+    ContainerBuilder, 
+    MediaGalleryBuilder, 
+    TextDisplayBuilder, 
+    SeparatorBuilder 
+} = require('discord.js');
+const Infraction = require('../schemas/infraction');
+
+async function generateInfractionId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let id;
+    while (true) {
+        id = '#' + Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        const exists = await Infraction.findOne({ infractionId: id });
+        if (!exists) break;
+    }
+    return id;
+}
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('infract')
+        .setDescription('Infraction system')
+        .addSubcommand(sub =>
+            sub.setName('issue')
+               .setDescription('Issue an infraction')
+               .addUserOption(o => o.setName('user').setDescription('Designer').setRequired(true))
+               .addStringOption(o => 
+                    o.setName('punishment')
+                     .setDescription('Punishment')
+                     .setRequired(true)
+                     .addChoices(
+                         { name: 'Notice', value: 'Notice' },
+                         { name: 'Warning', value: 'Warning' },
+                         { name: 'Strike', value: 'Strike' },
+                         { name: 'Suspension', value: 'Suspension' },
+                         { name: 'Under Investigation', value: 'Under Investigation' },
+                         { name: 'Termination', value: 'Termination' },
+                         { name: 'Staff Blacklist', value: 'Staff Blacklist' }
+                     )
+                )
+               .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(true))
+        )
+        .addSubcommand(sub =>
+            sub.setName('void')
+               .setDescription('Void an infraction')
+               .addStringOption(o => o.setName('id').setDescription('Infraction ID').setRequired(true))
+        ),
+
+    run: async ({ interaction }) => {
+        const allowedRoles = [
+            'ALLOWED_ROLE_ID',
+            'ALLOWED_ROLE_ID',
+            'ALLOWED_ROLE_ID',
+        ];
+
+        const member = interaction.member || await interaction.guild.members.fetch(interaction.user.id);
+        const hasRole = member.roles.cache.some(role => allowedRoles.includes(role.id));
+        if (!hasRole) return interaction.reply({ content: "You don't have permission to use this command.", ephemeral: true });
+
+        const sub = interaction.options.getSubcommand();
+
+        try {
+            if (sub === 'issue') {
+                const user = interaction.options.getUser('user');
+                const punishment = interaction.options.getString('punishment');
+                const reason = interaction.options.getString('reason');
+                const infractionId = await generateInfractionId();
+
+                const infraction = await Infraction.create({
+                    userId: user.id,
+                    issuedBy: interaction.user.id,
+                    punishment,
+                    reason,
+                    infractionId
+                });
+
+                const banner = 'bannerurl';
+                const footer = 'footerurl';
+
+                const container = new ContainerBuilder().setAccentColor(0xf6ffa2);
+
+                container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems([{ media: { url: banner } }]));
+
+                container.addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `## Staff Punishment\nThis user has received a punishment from the HR team.`
+                    ),
+                    new TextDisplayBuilder().setContent(`**Staff Username** \`-\` ${userMention(user.id)}`)
+                );
+
+                container.addSeparatorComponents(new SeparatorBuilder());
+
+                container.addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(`**Staff Punishment** \`-\` ${punishment}`)
+                );
+                container.addSeparatorComponents(new SeparatorBuilder());
+
+                container.addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(`**Reason** \`-\` ${reason}`)
+                );
+                container.addSeparatorComponents(new SeparatorBuilder());
+
+                container.addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(`**Issued by** \`-\` <@${interaction.user.id}>`)
+                );
+
+                container.addSeparatorComponents(new SeparatorBuilder());
+                
+                container.addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(`**Infraction ID** \`-\` ${infractionId}`)
+                );
+
+                container.addMediaGalleryComponents(new MediaGalleryBuilder().addItems([{ media: { url: footer } }]));
+
+                const channelid = 'CHANNEL_ID'
+
+                    const ch = await interaction.client.channels.fetch(channelid)
+                    await ch.send({ flags: MessageFlags.IsComponentsV2, components: [container], allowedMentions: { parse: [] } });
+
+                return interaction.reply({ content: `Successfully infracted **@${user.username}**.\nID is: \`${infractionId}\``, ephemeral: true });
+            }
+
+            if (sub === 'void') {
+                const id = interaction.options.getString('id').toUpperCase();
+                const deleted = await Infraction.findOneAndDelete({ infractionId: id });
+
+                if (!deleted) {
+                    return interaction.reply({ content: `No infraction found with ID \`${id}\`.`, ephemeral: true });
+                }
+
+                return interaction.reply({ content: `Infraction \`${id}\` has been **voided**.`, ephemeral: true });
+            }
+
+        } catch (error) {
+            console.error("Error in /infract command:", error);
+            if (!interaction.replied) return interaction.reply({ content: "An error occurred while processing your request.", ephemeral: true });
+        }
+    }
+};
