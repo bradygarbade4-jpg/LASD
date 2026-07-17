@@ -52,7 +52,7 @@ module.exports = {
 
     run: async ({ interaction }) => {
         const allowedRoles = [
-            'ALLOWED_ROLE_ID',
+            '1470529706154791016',
             'ALLOWED_ROLE_ID',
             'ALLOWED_ROLE_ID',
         ];
