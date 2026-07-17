@@ -1,4 +1,4 @@
-infraction { 
+import { 
     SlashCommandBuilder, 
     userMention, 
     MessageFlags, 
