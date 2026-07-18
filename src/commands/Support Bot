@@ -1,0 +1,20 @@
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+
+// Create the Embed
+const embed = new EmbedBuilder()
+    .setTitle('🕵️‍♂️ | Assistance')
+    .setColor(0x2f3136)
+    .setImage('YOUR_BANNER_URL');
+
+// Create the Buttons and Select Menus
+const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('guidelines').setLabel('Guidelines').setStyle(ButtonStyle.Secondary).setEmoji('📋')
+);
+const row2 = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder().setCustomId('category').setPlaceholder('Choose a Ticket Category').addOptions(
+        { label: 'Support', value: 'support', emoji: '❓' },
+        { label: 'Report', value: 'report', emoji: '⚠️' }
+    )
+);
+
+// await interaction.reply({ embeds: [embed], components: [row1, row2] });
